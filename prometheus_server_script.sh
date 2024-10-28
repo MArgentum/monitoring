@@ -232,6 +232,8 @@ sudo systemctl status alertmanager
 
 # nginx
 
+sudo systemctl disable apache2 && sudo systemctl stop apache2
+
 sudo apt-get update && sudo apt-get install -y nginx
 
 sudo rm -rf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default

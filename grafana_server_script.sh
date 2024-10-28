@@ -1,42 +1,65 @@
 #!/bin/bash
 
-# grafana
+# Определение переменных
+GRAFANA_VERSION="11.2.2" #11.2.2 - stable
+NODE_EXPORTER_VERSION="1.8.2" #1.8.2 - stable
+ALLOWED_NETWORK="10.130.0.0/24" #10.130.0.0/24 - default
+MONITORING_DIR="$HOME/monitoring"
 
-sudo apt-get update
+# Создание директории для мониторинга
+mkdir -p $MONITORING_DIR
 
-sudo apt-get install -y apt-transport-https software-properties-common wget libfontconfig1 musl adduser
+# Обновление репозиториев и установка зависимостей
+sudo apt-get update && sudo apt-get install -y apt-transport-https software-properties-common wget libfontconfig1 musl adduser
 
-wget https://dl.grafana.com/oss/release/grafana_11.2.2_amd64.deb
+# Скачивание и установка Grafana с проверкой целостности
+cd $MONITORING_DIR
+if [ ! -f grafana_${GRAFANA_VERSION}_amd64.deb ]; then
+    wget https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb
+    wget https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb.sha256
+    sha256sum -c grafana_${GRAFANA_VERSION}_amd64.deb.sha256
+    if [ $? -ne 0 ]; then
+        echo "Ошибка проверки контрольной суммы Grafana. Установка прервана."
+        exit 1
+    fi
+fi
 
-sudo dpkg -i grafana_11.2.2_amd64.deb
-
+sudo dpkg -i grafana_${GRAFANA_VERSION}_amd64.deb
 sudo apt install -f
+rm -rf grafana_${GRAFANA_VERSION}_amd64.deb grafana_${GRAFANA_VERSION}_amd64.deb.sha256
 
-
-sudo rm -rf grafana_11.2.2_amd64.deb
-
+# Настройка iptables
 sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-sudo iptables -A INPUT -p tcp -m multiport --dports 3000,9100 -s 10.130.0.0/24 -j ACCEPT
+sudo iptables -A INPUT -p tcp -m multiport --dports 3000,9100 -s $ALLOWED_NETWORK -j ACCEPT
 sudo iptables -A INPUT -p tcp -m multiport --dports 3000,9100 -s 127.0.0.1 -j ACCEPT
 sudo iptables -A INPUT -p tcp -m multiport --dports 3000,9100 -j DROP
 
-sudo sudo DEBIAN_FRONTEND=noninteractive IPTABLES_PERSISTENT_SAVE=yes apt-get install -y iptables-persistent
+# Установка iptables-persistent для сохранения правил
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
 
+# Сохранение iptables правил
 sudo netfilter-persistent save
 
+# Скачивание и установка Node Exporter
+cd $MONITORING_DIR
+if [ ! -f node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz ]; then
+    wget https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+fi
 
-# node_exporter
+tar xvfz node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+mv ./node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter $MONITORING_DIR/
+rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64 node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
 
-wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
-sudo tar xvfz node_exporter-1.8.2.linux-amd64.tar.gz
-sudo mv ./node_exporter-1.8.2.linux-amd64/node_exporter /usr/bin/
+# Создание пользователя node_exporter, если не существует
+if id "node_exporter" &>/dev/null; then
+    echo "Пользователь node_exporter уже существует"
+else
+    sudo useradd -rs /bin/false node_exporter
+fi
 
-sudo rm -rf node_exporter-1.8.2.linux-amd64 node_exporter-1.8.2.linux-amd64.tar.gz
+sudo chown -R node_exporter:node_exporter $MONITORING_DIR/node_exporter
 
-sudo useradd -rs /bin/false node_exporter
-sudo chown -R  node_exporter:node_exporter /usr/bin/node_exporter
-
+# Создание службы для Node Exporter
 sudo bash -c 'cat > /etc/systemd/system/node_exporter.service << EOF
 [Unit]
 Description=Prometheus Node Exporter
@@ -47,15 +70,13 @@ User=node_exporter
 Group=node_exporter
 Type=simple
 Restart=on-failure
-ExecStart=/usr/bin/node_exporter
+ExecStart=$MONITORING_DIR/node_exporter
 
 [Install]
 WantedBy=multi-user.target
 EOF'
 
-
+# Запуск и включение служб Grafana и Node Exporter
 sudo systemctl daemon-reload
-sudo systemctl enable grafana-server
-sudo systemctl start grafana-server
-sudo systemctl enable node_exporter
-sudo systemctl start node_exporter
+sudo systemctl enable --now grafana-server
+sudo systemctl enable --now node_exporter

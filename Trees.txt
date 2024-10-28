@@ -1,0 +1,53 @@
+# Prometheus-Server Tree
+/
+└── etc
+    ├── prometheus
+    │   └── prometheus.yml           # Основной конфигурационный файл Prometheus
+    ├── alertmanager
+    │   └── alertmanager.yml         # Конфигурация Alertmanager
+    └── alert-rules
+        └── alert.rules.yml          # Файл правил для Alertmanager
+    └── default
+        └── prometheus               # Параметры запуска Prometheus
+└── usr
+    └── bin
+        ├── prometheus               # Исполняемый файл Prometheus
+        ├── alertmanager             # Исполняемый файл Alertmanager
+        └── node_exporter            # Исполняемый файл Node Exporter
+└── var
+    └── lib
+        ├── prometheus               # Директория для хранения данных Prometheus
+        └── alertmanager             # Директория для хранения данных Alertmanager
+└── etc
+    └── systemd
+        └── system
+            ├── prometheus.service   # Сервис systemd для Prometheus
+            ├── alertmanager.service # Сервис systemd для Alertmanager
+            └── node_exporter.service # Сервис systemd для Node Exporter
+└── etc
+    └── nginx
+        ├── sites-available
+        │   └── devops-study.conf    # Конфигурация NGINX для прокси Prometheus, Alertmanager и Grafana
+        └── auth.basic               # Файл для хранения данных авторизации для NGINX
+
+
+# Grafana-Server Tree
+/
+└── etc
+    ├── grafana
+        └── grafana.ini              # Основной конфигурационный файл Grafana (при необходимости)
+    └── systemd
+        └── system
+            ├── grafana-server.service  # Сервис systemd для Grafana
+            └── node_exporter.service   # Сервис systemd для Node Exporter
+└── var
+    └── lib
+        └── grafana                  # Директория для хранения данных Grafana
+└── etc
+    └── default
+        └── grafana                  # Параметры запуска Grafana
+└── etc
+    └── nginx
+        ├── sites-available
+        │   └── devops-study.conf    # Конфигурация NGINX для прокси Grafana и других сервисов
+        └── auth.basic               # Файл для хранения данных авторизации для NGINX
