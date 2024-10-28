@@ -1,0 +1,24 @@
+global:
+  scrape_interval:     3s # Set the scrape interval to every 10 seconds. Default is every 1 minute.
+
+alerting:
+  alertmanagers:
+    - static_configs:
+      - targets: ["localhost:9093"]
+
+rule_files:
+  - /etc/alert-rules/alert.rules.yml
+
+
+scrape_configs:
+  - job_name:  "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name:  "local_node_exporter"
+    static_configs:
+      - targets:  ["localhost:9100"]  # если node_exporter установлен локально на той же машине
+
+  - job_name:  "grafana_node_exporter"
+    static_configs:
+      - targets:  ["10.130.0.11:9100"]

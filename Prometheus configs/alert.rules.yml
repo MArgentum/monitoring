@@ -1,0 +1,56 @@
+groups:
+
+#- name: test.rules
+#  rules:
+#  - alert: TestAlert
+#    expr: vector(1)  # Эта метрика всегда возвращает 1, так что алерт всегда будет срабатывать
+#    for: 10s
+#    labels:
+#      severity: critical
+#    annotations:
+#      summary: "Test alert for Telegram integration"
+#      description: "This is a test alert to verify the Telegram integration."
+
+- name: alert.rules
+  rules:
+  - alert: InstanceDown
+    expr: up == 0
+    for: 30s
+    labels:
+      severity: critical
+      instance: "{{ $labels.instance }}"
+    annotations:
+      summary: "Endpoint {{ $labels.instance }} down"
+      description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+
+  - alert: HostHighCpuLoad
+    expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5s]))) * 100 > 75
+    for: 1s
+    labels:
+      severity: warning
+      alertname: HostHighCpuLoad
+      instance: "{{ $labels.instance }}"
+    annotations:
+      summary: "Host high CPU load (instance {{ $labels.instance }})"
+      description: "CPU load is > 75%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
+  - alert: HostOutOfMemory
+    expr: node_memory_MemAvailable / node_memory_MemTotal * 100 < 25
+    for: 1m
+    labels:
+      severity: warning
+      instance: "{{ $labels.instance }}"
+    annotations:
+      summary: "Host out of memory (instance {{ $labels.instance }})"
+      description: "Node memory is filling up (< 25% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
+  - alert: HostOutOfDiskSpace
+    expr: (node_filesystem_avail{mountpoint="/"}  * 100) / node_filesystem_size{mountpoint="/"} < 50
+    for: 1s
+    labels:
+      severity: warning
+      instance: "{{ $labels.instance }}"
+    annotations:
+      summary: "Host out of disk space (instance {{ $labels.instance }})"
+      description: "Disk is almost full (< 50% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
